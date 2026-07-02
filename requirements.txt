@@ -1,0 +1,11 @@
+sentence-transformers
+faiss-cpu
+numpy
+langchain
+langchain-community
+openai
+streamlit
+Pillow
+torch
+transformers
+open-clip-torch
