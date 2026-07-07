@@ -3,9 +3,13 @@ faiss-cpu
 numpy
 langchain
 langchain-community
+langgraph
 openai
 streamlit
 Pillow
 torch
 transformers
 open-clip-torch
+requests
+pydantic
+
