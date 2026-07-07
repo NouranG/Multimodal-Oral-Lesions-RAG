@@ -12,16 +12,19 @@ import pickle
 import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer
-from langchain.tools import Tool
+from langchain.tools import tool
 from pydantic import BaseModel, Field
 from typing import Optional
+import os
 
 # ── Paths ────────────────────────────────────────────────────────────────────
-BASE_DIR           = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TEXT_INDEX_PATH    = os.path.join(BASE_DIR, "data", "index", "text_index.faiss")
-TEXT_META_PATH     = os.path.join(BASE_DIR, "data", "index", "text_metadata.pkl")
-IMAGE_INDEX_PATH   = os.path.join(BASE_DIR, "data", "index", "image_index.faiss")
-IMAGE_META_PATH    = os.path.join(BASE_DIR, "data", "index", "image_metadata.pkl")
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+TEXT_INDEX_PATH    = os.path.join(PROJECT_ROOT, "data", "index", "text_index.faiss")
+TEXT_META_PATH     = os.path.join(PROJECT_ROOT, "data", "index", "text_metadata.pkl")
+IMAGE_INDEX_PATH   = os.path.join(PROJECT_ROOT, "data", "index", "image_index.faiss")
+IMAGE_META_PATH    = os.path.join(PROJECT_ROOT, "data", "index", "image_metadata.pkl")
 TEXT_MODEL_NAME    = "sentence-transformers/all-MiniLM-L6-v2"
 CLIP_MODEL_NAME    = "ViT-B-32"
 
@@ -158,46 +161,37 @@ def retrieve_similar_images_by_image(image_path: str, k: int = 4) -> str:
     return "\n".join(results)
 
 
-# ── LangChain Tool definitions ────────────────────────────────────────────────
+# ── LangChain Tool definitions ──────────────────────────────────
 
-TextRetrievalTool = Tool(
-    name="text_retriever",
-    func=retrieve_text_chunks,
-    description=(
-        "Use this tool when the user describes a lesion in text — symptoms, appearance, "
-        "site, clinical findings, or test results. "
-        "Input: a clinical description string. "
-        "Output: the most relevant differential diagnosis text chunks from the corpus, "
-        "including distinguishing features and clinical tests."
-    )
-)
-
-ImageTextRetrievalTool = Tool(
-    name="image_retriever_by_text",
-    func=retrieve_similar_images_by_text,
-    description=(
-        "Use this tool to find reference images matching a text description of a lesion. "
-        "Uses CLIP's shared embedding space to bridge text and image modalities. "
-        "Input: a clinical description string. "
-        "Output: paths and metadata of the most visually similar reference images."
-    )
-)
-
-ImageImageRetrievalTool = Tool(
-    name="image_retriever_by_image",
-    func=retrieve_similar_images_by_image,
-    description=(
-        "Use this tool when the user uploads an image of a lesion. "
-        "Embeds the image using CLIP and finds visually similar reference cases. "
-        "Input: file path to the uploaded image. "
-        "Output: paths and metadata of the most visually similar reference images."
-    )
-)
+@tool
+def text_retriever_tool(query: str) -> str:
+    """
+    Retrieve relevant text chunks describing oral lesions.
+    """
+    return retrieve_text_chunks(query)
 
 
-# ── Tool registry — imported by the LangGraph graph ──────────────────────────
+@tool
+def image_retriever_by_text_tool(query: str) -> str:
+    """
+    Retrieve visually similar reference images using a text description.
+    """
+    return retrieve_similar_images_by_text(query)
 
-ALL_TOOLS = [TextRetrievalTool, ImageTextRetrievalTool, ImageImageRetrievalTool]
+
+@tool
+def image_retriever_by_image_tool(image_path: str) -> str:
+    """
+    Retrieve visually similar reference images using an uploaded image.
+    """
+    return retrieve_similar_images_by_image(image_path)
+
+
+ALL_TOOLS = [
+    text_retriever_tool,
+    image_retriever_by_text_tool,
+    image_retriever_by_image_tool,
+]
 
 
 if __name__ == "__main__":
