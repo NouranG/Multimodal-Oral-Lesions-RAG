@@ -18,7 +18,6 @@ INDEX_DIR = "data/index"
 INDEX_PATH = os.path.join(INDEX_DIR, "text_index.faiss")
 METADATA_PATH = os.path.join(INDEX_DIR, "text_metadata.pkl")
 
-# Model — small but strong for medical/clinical text similarity
 MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
 
