@@ -332,6 +332,39 @@ def confidence_check_node(state: OralLesionState) -> OralLesionState:
     output     = state.get("generated_output", "")
     retry_count = state.get("retry_count", 0)
 
+
+
+    # ---------- Detect generation failures ----------
+    output_lower = output.lower()
+
+    failure_patterns = [
+        "generation error",
+        "404",
+        "could not connect",
+        "connectionerror",
+        "connection error",
+        "timed out",
+        "timeout",
+        "refused",
+        "internal server error",
+        "bad gateway",
+        "service unavailable",
+    ]
+    if any(pattern in output_lower for pattern in failure_patterns):
+        print("[confidence_check] Generation failed.")
+
+        return {
+            "confidence_score": 0.0,
+            "confidence_flags": {
+                "generation_failed": True,
+                "pair_identified": False,
+                "clinical_test_mentioned": False,
+                "next_steps_present": False,
+            },
+            "retry_count": retry_count,
+        }
+
+
     score = 0.0
     flags = {}
 
@@ -343,7 +376,7 @@ def confidence_check_node(state: OralLesionState) -> OralLesionState:
     ]
     pairs_found = [kw for kw in pair_keywords if kw.lower() in output.lower()]
     if len(pairs_found) >= 2:
-        score += 0.3
+        score += 0.4
         flags["pair_identified"] = True
     else:
         flags["pair_identified"] = False
@@ -365,27 +398,19 @@ def confidence_check_node(state: OralLesionState) -> OralLesionState:
     next_step_keywords = ["refer", "biopsy", "prescribe", "discontinue",
                           "follow up", "monitor", "recall", "urgent"]
     if any(kw.lower() in output.lower() for kw in next_step_keywords):
-        score += 0.2
+        score += 0.3
         flags["next_steps_present"] = True
     else:
         flags["next_steps_present"] = False
 
-    # Check 4: not a fallback error
-    if len(output.split()) > 100:
-        score += 0.2
-        flags["sufficient_length"] = True
-    else:
-        flags["sufficient_length"] = False
-
     print(f"[confidence_check] score={score:.2f} | flags={flags} | retries={retry_count}")
-
     return {
-        "confidence_score": score,
-        "confidence_flags": flags,
-        "retry_count":      retry_count,
-    }
+    "confidence_score": score,
+    "confidence_flags": flags,
+    "retry_count": retry_count,
+}
 
-
+    
 # ── Conditional edge: confidence_check → clarify or END ──────────────────────
 
 def confidence_routing(state: OralLesionState) -> str:
@@ -408,7 +433,7 @@ def clarify_node(state: OralLesionState) -> OralLesionState:
     In this system we auto-answer it with "proceed with available info"
     and append the missing signal context to the next retrieval query.
 
-    In a real deployment, this node would pause and wait for actual user input.
+    In deployment, this node would pause and wait for actual user input.
     For portfolio/demo purposes it simulates the loop.
     """
     flags       = state.get("confidence_flags", {})
